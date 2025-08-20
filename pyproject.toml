@@ -1,0 +1,24 @@
+[project]
+name = "my-project"
+version = "0.1.0"
+description = "Minimal project with pypdf and langchain-community"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pypdf",
+    "langchain-community",
+    "langchain-openai",
+    "langchain-chroma",
+    "langchain",
+    "langgraph",
+    "gradio",
+    "langgraph-checkpoint-sqlite",
+    "langchain_core",
+    "langgraph_sdk",
+    "langgraph-prebuilt",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel",   # optional, for Jupyter
+]
