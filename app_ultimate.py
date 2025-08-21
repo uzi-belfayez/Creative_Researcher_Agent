@@ -4,13 +4,12 @@ from ultimate_research_agent import compile_ultimate_diagram
 def create_analysts(topic, max_analysts):
     graph = compile_ultimate_diagram()
     thread = {"configurable": {"thread_id": "1"}}
-    # Run until interruption at human_feedback
     state = {"topic": topic, "max_analysts": int(max_analysts)}
     analysts = []
+    # Fully consume the generator
     for event in graph.stream(state, thread, stream_mode="values"):
-        analysts = event.get('analysts', [])
-        if analysts:
-            break
+        if event.get('analysts', []):
+            analysts = event['analysts']
     if not analysts:
         return "No analysts generated.", gr.update(visible=False)
     analyst_md = "\n".join([
@@ -22,14 +21,17 @@ def create_analysts(topic, max_analysts):
 def update_analysts(topic, max_analysts, feedback):
     graph = compile_ultimate_diagram()
     thread = {"configurable": {"thread_id": "1"}}
-    # Update state with feedback and rerun until interruption
-    graph.update_state(thread, {"human_analyst_feedback": feedback}, as_node="human_feedback")
-    graph.update_state(thread, {"human_analyst_feedback": None}, as_node="human_feedback")
+    # Always pass full state including topic and max_analysts
+    state = {"topic": topic, "max_analysts": int(max_analysts), "human_analyst_feedback": feedback}
+    graph.update_state(thread, state, as_node="human_feedback")
+    # Clear feedback for next step
+    state["human_analyst_feedback"] = None
+    graph.update_state(thread, state, as_node="human_feedback")
     analysts = []
-    for event in graph.stream(None, thread, stream_mode="values"):
-        analysts = event.get('analysts', [])
-        if analysts:
-            break
+    # Fully consume the generator
+    for event in graph.stream(state, thread, stream_mode="values"):
+        if event.get('analysts', []):
+            analysts = event['analysts']
     if not analysts:
         return "No analysts generated.", gr.update(visible=False)
     analyst_md = "\n".join([
@@ -41,9 +43,11 @@ def update_analysts(topic, max_analysts, feedback):
 def generate_report(topic, max_analysts, feedback):
     graph = compile_ultimate_diagram()
     thread = {"configurable": {"thread_id": "1"}}
-    # Ensure feedback is set to None before proceeding
-    graph.update_state(thread, {"human_analyst_feedback": feedback}, as_node="human_feedback")
-    graph.update_state(thread, {"human_analyst_feedback": None}, as_node="human_feedback")
+    # Always pass full state including topic and max_analysts
+    state = {"topic": topic, "max_analysts": int(max_analysts), "human_analyst_feedback": feedback}
+    graph.update_state(thread, state, as_node="human_feedback")
+    state["human_analyst_feedback"] = None
+    graph.update_state(thread, state, as_node="human_feedback")
     final_state = graph.get_state(thread)
     report = final_state.values.get('final_report', "No report generated.")
     return report
