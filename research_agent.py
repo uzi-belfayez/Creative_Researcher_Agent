@@ -235,6 +235,9 @@ def write_section(state: InterviewState):
     # Append it to state
     return {"sections": [section.content]}
 
+def human_feedback(state: GenerateAnalystsState):
+    """ No-op node that should be interrupted on """
+    pass
 
 def compile_analyst_graph():
     interview_builder = StateGraph(InterviewState)
