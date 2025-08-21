@@ -132,11 +132,22 @@ def finalize_report(state: ResearchGraphState):
 from research_agent import create_analysts
 from research_agent import human_feedback
 
+def human_feedback(state: ResearchGraphState):
+    """
+    Allows human feedback to modify analysts if needed.
+    If feedback is provided, user can adjust the analysts list.
+    """
+    feedback = state.get("human_analyst_feedback", "")
+    if feedback:
+        # Example: If feedback contains instructions to modify analysts,
+        # you could parse and apply changes here.
+        # For now, just return to 'create_analysts' to let user modify analysts.
+        return "create_analysts"
+    # If no feedback, continue to interviews
+    return None
+
 def compile_ultimate_diagram():
-
     interview_builder = compile_analyst_graph()
-
-    # Add nodes and edges 
     builder = StateGraph(ResearchGraphState)
     builder.add_node("create_analysts", create_analysts)
     builder.add_node("human_feedback", human_feedback)
@@ -158,7 +169,10 @@ def compile_ultimate_diagram():
 
     # Compile
     memory = MemorySaver()
-    graph = builder.compile(interrupt_before=['human_feedback'], checkpointer=memory)
+    graph = builder.compile(
+        interrupt_before=['human_feedback'],
+        checkpointer=memory,
+    )
 
     return graph
 
