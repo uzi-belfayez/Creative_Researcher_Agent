@@ -38,6 +38,12 @@ os.environ["LANGSMITH_PROJECT"] = "langchain-academy"
 _set_env("TAVILY_API_KEY")
 _set_env("OPENAI_API_KEY")
 
+class GenerateAnalystsState(TypedDict):
+    topic: str # Research topic
+    max_analysts: int # Number of analysts
+    human_analyst_feedback: str # Human feedback
+    analysts: List[Analyst] # Analyst asking questions
+
 class ResearchGraphState(TypedDict):
     topic: str # Research topic
     max_analysts: int # Number of analysts
@@ -66,7 +72,7 @@ def initiate_all_interviews(state: ResearchGraphState):
                                                content=f"So you said you were writing an article on {topic}?"
                                            )
                                                        ]}) for analyst in state["analysts"]]
-    
+
 
 def write_report(state: ResearchGraphState):
     # Full set of sections
@@ -80,7 +86,6 @@ def write_report(state: ResearchGraphState):
     system_message = report_writer_instructions.format(topic=topic, context=formatted_str_sections)    
     report = llm.invoke([SystemMessage(content=system_message)]+[HumanMessage(content=f"Write a report based upon these memos.")]) 
     return {"content": report.content}
-
 
 def write_introduction(state: ResearchGraphState):
     # Full set of sections
@@ -132,26 +137,35 @@ def finalize_report(state: ResearchGraphState):
 from research_agent import create_analysts
 from research_agent import human_feedback
 
-def human_feedback(state: ResearchGraphState):
-    """
-    Allows human feedback to modify analysts if needed.
-    If feedback is provided, user can adjust the analysts list.
-    """
-    feedback = state.get("human_analyst_feedback", "")
-    if feedback:
-        # Example: If feedback contains instructions to modify analysts,
-        # you could parse and apply changes here.
-        # For now, just return to 'create_analysts' to let user modify analysts.
-        return "create_analysts"
-    # If no feedback, continue to interviews
-    return None
+def human_feedback(state: GenerateAnalystsState):
+    """ No-op node that should be interrupted on """
+    pass
+
+from research_agent import InterviewState, generate_answer,  generate_question, search_web, search_wikipedia, save_interview, write_section, route_messages
 
 def compile_ultimate_diagram():
-    interview_builder = compile_analyst_graph()
+    interview_builder = StateGraph(InterviewState)
+    interview_builder.add_node("ask_question", generate_question)
+    interview_builder.add_node("search_web", search_web)
+    interview_builder.add_node("search_wikipedia", search_wikipedia)
+    interview_builder.add_node("answer_question", generate_answer)
+    interview_builder.add_node("save_interview", save_interview)
+    interview_builder.add_node("write_section", write_section)
+
+    # Flow
+    interview_builder.add_edge(START, "ask_question")
+    interview_builder.add_edge("ask_question", "search_web")
+    interview_builder.add_edge("ask_question", "search_wikipedia")
+    interview_builder.add_edge("search_web", "answer_question")
+    interview_builder.add_edge("search_wikipedia", "answer_question")
+    interview_builder.add_conditional_edges("answer_question", route_messages,['ask_question','save_interview'])
+    interview_builder.add_edge("save_interview", "write_section")
+    interview_builder.add_edge("write_section", END)
+
     builder = StateGraph(ResearchGraphState)
     builder.add_node("create_analysts", create_analysts)
     builder.add_node("human_feedback", human_feedback)
-    builder.add_node("conduct_interview", interview_builder)
+    builder.add_node("conduct_interview", interview_builder.compile())
     builder.add_node("write_report",write_report)
     builder.add_node("write_introduction",write_introduction)
     builder.add_node("write_conclusion",write_conclusion)
@@ -169,10 +183,44 @@ def compile_ultimate_diagram():
 
     # Compile
     memory = MemorySaver()
-    graph = builder.compile(
-        interrupt_before=['human_feedback'],
-        checkpointer=memory,
-    )
-
+    graph = builder.compile(interrupt_before=['human_feedback'], checkpointer=memory)
     return graph
 
+
+# if __name__ == "__main__": 
+
+#     thread = {"configurable": {"thread_id": "1"}}
+#     max_analysts = 3
+#     topic = "landing end of studies internships"
+#     graph = compile_ultimate_diagram()
+
+
+#     # Run the graph until the first interruption
+#     for event in graph.stream({"topic":topic,
+#                                 "max_analysts":max_analysts}, 
+#                                 thread, 
+#                                 stream_mode="values"):
+        
+#         analysts = event.get('analysts', '')
+#         if analysts:
+#             for analyst in analysts:
+#                 print(f"Name: {analyst.name}")
+#                 print(f"Affiliation: {analyst.affiliation}")
+#                 print(f"Role: {analyst.role}")
+#                 print(f"Description: {analyst.description}")
+#                 print("-" * 50)  
+
+#     graph.update_state(thread, {"human_analyst_feedback": 
+#                                 "Add in a HR manager instead of Dr. Emily Carter"}, as_node="human_feedback")
+    
+#     graph.update_state(thread, {"human_analyst_feedback": 
+#                             None}, as_node="human_feedback")
+    
+#     for event in graph.stream(None, thread, stream_mode="updates"):
+#         print("--Node--")
+#         node_name = next(iter(event.keys()))
+#         print(node_name)
+    
+#     final_state = graph.get_state(thread)
+#     report = final_state.values.get('final_report')
+#     print(report)
