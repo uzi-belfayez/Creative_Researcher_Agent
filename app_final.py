@@ -175,18 +175,34 @@ def gradio_generate_report():
     return report
 
 
+def reset_all():
+    global thread
+    thread = {"configurable": {"thread_id": "1"}}
+    return "", ""
+
+
+
 # --- Gradio UI ---
 with gr.Blocks() as demo:
-    gr.Markdown("# Analyst Generator (Human-in-the-Loop)")
-    topic = gr.Textbox(label="Research Topic", placeholder="Enter your research topic")
-    max_analysts = gr.Slider(label="Number of Analysts", minimum=1, maximum=10, step=1, value=3)
-    feedback = gr.Textbox(label="Human Analyst Feedback", placeholder="E.g. Replace analyst, add HR manager, etc.")
-    analyst_md = gr.Markdown(label="Analyst Profiles")
-    report_md = gr.Markdown(label="Final Report")
+    gr.Markdown("## 🕵️‍♂️ Analyst Generator (Human-in-the-Loop)")
 
-    gen_analysts_btn = gr.Button("Generate Analysts")
-    update_analysts_btn = gr.Button("Update Analysts with Feedback")
-    final_report_btn = gr.Button("Generate Final Report")
+    with gr.Row():
+        topic = gr.Textbox(label="📝 Research Topic", placeholder="Enter your research topic", lines=1)
+        max_analysts = gr.Slider(label="👥 Number of Analysts", minimum=1, maximum=10, step=1, value=3)
+
+    feedback = gr.Textbox(label="💡 Human Analyst Feedback", placeholder="E.g. Replace analyst, add HR manager, etc.", lines=2)
+
+    with gr.Tab("Analysts"):
+        analyst_md = gr.Markdown("### 📋 Analyst Profiles will appear here")
+
+    with gr.Tab("Final Report"):
+        report_md = gr.Markdown("### 📰 Final Report will appear here")
+
+    with gr.Row():
+        gen_analysts_btn = gr.Button("⚡ Generate Analysts")
+        update_analysts_btn = gr.Button("✏️ Update Analysts with Feedback")
+        final_report_btn = gr.Button("📄 Generate Final Report")
+        reset_btn = gr.Button("🔄 Reset All")
 
     # Generate initial analysts
     gen_analysts_btn.click(
@@ -208,5 +224,13 @@ with gr.Blocks() as demo:
         outputs=report_md
     )
 
+    # Reset all fields
+    reset_btn.click(
+        fn=reset_all,
+        inputs=[],
+        outputs=[analyst_md, report_md, topic, max_analysts, feedback]
+    )
+
 if __name__ == "__main__":
     demo.launch()
+
