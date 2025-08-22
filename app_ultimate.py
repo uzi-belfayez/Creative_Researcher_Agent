@@ -1,9 +1,8 @@
 import gradio as gr
 from ultimate_research_agent import compile_ultimate_diagram
 
-def create_analysts(topic, max_analysts):
-    graph = compile_ultimate_diagram()
-    thread = {"configurable": {"thread_id": "1"}}
+def create_analysts(topic, max_analysts, thread, graph):
+    
     state = {"topic": topic, "max_analysts": int(max_analysts)}
     analysts = []
     # Fully consume the generator
@@ -18,9 +17,7 @@ def create_analysts(topic, max_analysts):
     ])
     return analyst_md, gr.update(visible=True)
 
-def update_analysts(topic, max_analysts, feedback):
-    graph = compile_ultimate_diagram()
-    thread = {"configurable": {"thread_id": "1"}}
+def update_analysts(topic, max_analysts, feedback, thread, graph):
     # Always pass full state including topic and max_analysts
     state = {"topic": topic, "max_analysts": int(max_analysts), "human_analyst_feedback": feedback}
     graph.update_state(thread, state, as_node="human_feedback")
@@ -43,6 +40,10 @@ def update_analysts(topic, max_analysts, feedback):
 def generate_report(topic, max_analysts, feedback):
     graph = compile_ultimate_diagram()
     thread = {"configurable": {"thread_id": "1"}}
+
+    analyst_md, _ = create_analysts(topic, max_analysts, thread, graph)
+    analyst_md, _ = update_analysts(topic, max_analysts, feedback, thread, graph)
+
     # Always pass full state including topic and max_analysts
     state = {"topic": topic, "max_analysts": int(max_analysts), "human_analyst_feedback": feedback}
     graph.update_state(thread, state, as_node="human_feedback")
@@ -63,21 +64,21 @@ with gr.Blocks() as demo:
     report_md = gr.Markdown(label="Report Section")
 
     with gr.Row():
-        gen_analysts_btn = gr.Button("Generate Analysts")
-        update_analysts_btn = gr.Button("Update Analysts with Feedback")
+        # gen_analysts_btn = gr.Button("Generate Analysts")
+        # update_analysts_btn = gr.Button("Update Analysts with Feedback")
         gen_report_btn = gr.Button("Generate Full Report")
 
-    gen_analysts_btn.click(
-        fn=create_analysts,
-        inputs=[topic, max_analysts],
-        outputs=[analyst_md, report_md]
-    )
+    # gen_analysts_btn.click(
+    #     fn=create_analysts,
+    #     inputs=[topic, max_analysts],
+    #     outputs=[analyst_md, report_md]
+    # )
 
-    update_analysts_btn.click(
-        fn=update_analysts,
-        inputs=[topic, max_analysts, feedback],
-        outputs=[analyst_md, report_md]
-    )
+    # update_analysts_btn.click(
+    #     fn=update_analysts,
+    #     inputs=[topic, max_analysts, feedback],
+    #     outputs=[analyst_md, report_md]
+    # )
 
     gen_report_btn.click(
         fn=generate_report,
