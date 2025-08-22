@@ -73,8 +73,8 @@ interview_builder.add_conditional_edges("answer_question", route_messages,['ask_
 interview_builder.add_edge("save_interview", "write_section")
 interview_builder.add_edge("write_section", END)
 
-memory = MemorySaver()
-interview_graph = interview_builder.compile(checkpointer=memory).with_config(run_name="Conduct Interviews")
+# memory = MemorySaver()
+# interview_graph = interview_builder.compile(checkpointer=memory).with_config(run_name="Conduct Interviews")
 
 # the big graph
 
@@ -104,77 +104,8 @@ graph = builder.compile(interrupt_before=['human_feedback'], checkpointer=memory
 
 
 
-# def gradio_analyst_flow(topic, max_analysts, feedback, final_report):
-#     thread = {"configurable": {"thread_id": "1"}}
-#     # Step 1: Generate analysts
-#     state = {"topic": topic, "max_analysts": int(max_analysts)}
-#     analysts = []
-#     for event in builder.stream(state, thread, stream_mode="values"):
-#         if event.get('analysts', []):
-#             analysts = event['analysts']
-#     # Step 2: Apply feedback if provided
-#     if feedback:
-#         state["human_analyst_feedback"] = feedback
-#         builder.update_state(thread, state, as_node="human_feedback")
-#         state["human_analyst_feedback"] = None
-#         builder.update_state(thread, state, as_node="human_feedback")
-#         analysts = []
-#         for event in builder.stream(state, thread, stream_mode="values"):
-#             if event.get('analysts', []):
-#                 analysts = event['analysts']
-#     # Format analysts for markdown
-#     if not analysts:
-#         analyst_md = "No analysts generated."
-#     else:
-#         analyst_md = "\n".join([
-#             f"**Name:** {a.name}\n**Affiliation:** {a.affiliation}\n**Role:** {a.role}\n**Description:** {a.description}\n---"
-#             for a in analysts
-#         ])
-
-#     # Step3 : generate report
-#     if final_report :
-#         for event in graph.stream(None, thread, stream_mode="updates"):
-#             print("--Node--")
-#             node_name = next(iter(event.keys()))
-#             print(node_name)
-
-#         final_state = graph.get_state(thread)
-#         report = final_state.values.get('final_report')
-
-#         return report
-#     return analyst_md
-
-
-# with gr.Blocks() as demo:
-#     gr.Markdown("# Analyst Generator (Human-in-the-Loop)")
-#     topic = gr.Textbox(label="Research Topic", placeholder="Enter your research topic")
-#     max_analysts = gr.Slider(label="Number of Analysts", minimum=1, maximum=10, step=1, value=3)
-#     feedback = gr.Textbox(label="Human Analyst Feedback", placeholder="E.g. Replace analyst, add HR manager, etc.")
-#     analyst_md = gr.Markdown(label="Analyst Profiles")
-#     report = gr.Markdown(label= "Final report")
-
-#     gen_analysts_btn = gr.Button("Generate/Update Analysts")
-#     final_report_btn = gr.Button("Generate final report")
-
-#     gen_analysts_btn.click(
-#         fn=gradio_analyst_flow,
-#         inputs=[topic, max_analysts, feedback, final_report],
-#         outputs=analyst_md
-#     )
-
-#     final_report_btn.click(
-#         fn=gradio_analyst_flow,
-#         inputs=[topic, max_analysts, feedback, final_report],
-#         outputs= report
-#     )
-
-# if __name__ == "__main__":
-#     demo.launch()
-
-
-
 # --- Shared thread so both buttons use same conversation ---
-thread = {"configurable": {"thread_id": "1"}}
+thread = {"configurable": {"thread_id": "default"}}
 
 # Step 1: Generate or update analysts
 def gradio_generate_analysts(topic, max_analysts, feedback):
@@ -187,16 +118,16 @@ def gradio_generate_analysts(topic, max_analysts, feedback):
             analysts = event["analysts"]
 
     # Apply feedback if given
-    if feedback:
-        state["human_analyst_feedback"] = feedback
-        graph.update_state(thread, state, as_node="human_feedback")
-        # state["human_analyst_feedback"] = None
-        # graph.update_state(thread, state, as_node="human_feedback")
+    # if feedback:
+    #     state["human_analyst_feedback"] = feedback
+    #     graph.update_state(thread, state, as_node="human_feedback")
+    #     state["human_analyst_feedback"] = None
+    #     #graph.update_state(thread, state, as_node="human_feedback")
 
-        analysts = []
-        for event in graph.stream(None, thread, stream_mode="values"):
-            if event.get("analysts", []):
-                analysts = event["analysts"]
+    #     analysts = []
+    #     for event in graph.stream(None, thread, stream_mode="values"):
+    #         if event.get("analysts", []):
+    #             analysts = event["analysts"]
 
     # Format analysts for markdown
     if not analysts:
@@ -207,8 +138,31 @@ def gradio_generate_analysts(topic, max_analysts, feedback):
     ])
 
 
+def gradio_update_analysts(feedback):
+    # Only update the human_feedback node
+    if not feedback:
+        return "No feedback provided."
+    
+    # Update the thread state at human_feedback
+    state = {"human_analyst_feedback": feedback}
+    graph.update_state(thread, state, as_node="human_feedback")
+    
+    # Now fetch the updated analysts
+    updated_analysts = []
+    for event in graph.stream(None, thread, stream_mode="values"):
+        if event.get("analysts", []):
+            updated_analysts = event["analysts"]
+    
+    return "\n".join([
+        f"**Name:** {a.name}\n**Affiliation:** {a.affiliation}\n**Role:** {a.role}\n**Description:** {a.description}\n---"
+        for a in updated_analysts
+    ])
+
+
 # Step 2: Continue graph to generate final report
-def gradio_generate_report(topic, max_analysts, feedback):
+def gradio_generate_report():
+    graph.update_state(thread, {"human_analyst_feedback": 
+                            None}, as_node="human_feedback")
     # State is already saved in the thread via the previous step
     final_state = None
     for event in graph.stream(None, thread, stream_mode="updates"):
@@ -228,21 +182,30 @@ with gr.Blocks() as demo:
     max_analysts = gr.Slider(label="Number of Analysts", minimum=1, maximum=10, step=1, value=3)
     feedback = gr.Textbox(label="Human Analyst Feedback", placeholder="E.g. Replace analyst, add HR manager, etc.")
     analyst_md = gr.Markdown(label="Analyst Profiles")
-    report = gr.Markdown(label="Final Report")
+    report_md = gr.Markdown(label="Final Report")
 
-    gen_analysts_btn = gr.Button("Generate/Update Analysts")
+    gen_analysts_btn = gr.Button("Generate Analysts")
+    update_analysts_btn = gr.Button("Update Analysts with Feedback")
     final_report_btn = gr.Button("Generate Final Report")
 
+    # Generate initial analysts
     gen_analysts_btn.click(
         fn=gradio_generate_analysts,
-        inputs=[topic, max_analysts, feedback],
+        inputs=[topic, max_analysts],
         outputs=analyst_md
     )
 
+    # Apply feedback
+    update_analysts_btn.click(
+        fn=gradio_update_analysts,
+        inputs=[feedback],
+        outputs=analyst_md
+    )
+
+    # Generate report
     final_report_btn.click(
         fn=gradio_generate_report,
-        inputs=[topic, max_analysts, feedback],
-        outputs=report
+        outputs=report_md
     )
 
 if __name__ == "__main__":
