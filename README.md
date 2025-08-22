@@ -32,13 +32,13 @@ Built with LangGraph, LangChain, Gradio, and OpenAI.
 Run the Gradio app for interactive research:
 
 ```bash
-python app.py
+uv run app.py
 ```
 
 Or use the advanced and final ultimate app that uses all the features:
 
 ```bash
-python app_final.py
+uv run app_final.py
 ```
 
 - Enter your research topic and select the number of analysts.
