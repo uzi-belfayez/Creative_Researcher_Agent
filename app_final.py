@@ -117,18 +117,6 @@ def gradio_generate_analysts(topic, max_analysts, feedback):
         if event.get("analysts", []):
             analysts = event["analysts"]
 
-    # Apply feedback if given
-    # if feedback:
-    #     state["human_analyst_feedback"] = feedback
-    #     graph.update_state(thread, state, as_node="human_feedback")
-    #     state["human_analyst_feedback"] = None
-    #     #graph.update_state(thread, state, as_node="human_feedback")
-
-    #     analysts = []
-    #     for event in graph.stream(None, thread, stream_mode="values"):
-    #         if event.get("analysts", []):
-    #             analysts = event["analysts"]
-
     # Format analysts for markdown
     if not analysts:
         return "No analysts generated."
